@@ -6,9 +6,11 @@ package oauth2
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // Transport is an http.RoundTripper that makes OAuth 2.0 HTTP requests,
@@ -42,8 +44,14 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t.Source == nil {
 		return nil, errors.New("oauth2: Transport's Source is nil")
 	}
+
+	start := time.Now()
+
 	token, err := t.Source.Token()
 	if err != nil {
+		el := time.Since(start)
+		fmt.Println("get token error:", err)
+		fmt.Println(fmt.Sprintf("Elapsed time: %s, toke %s", el.String(), token.AccessToken))
 		return nil, err
 	}
 
@@ -52,7 +60,13 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// req.Body is assumed to be closed by the base RoundTripper.
 	reqBodyClosed = true
-	return t.base().RoundTrip(req2)
+	resp, err := t.base().RoundTrip(req2)
+	if err != nil {
+		el := time.Since(start)
+		fmt.Println("Resp error:", err)
+		fmt.Println(fmt.Sprintf("Elapsed time: %s, toke %s", el.String(), token.AccessToken))
+	}
+	return resp, err
 }
 
 var cancelOnce sync.Once
